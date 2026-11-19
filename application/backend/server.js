@@ -90,6 +90,14 @@ app.get('/api/submissions', (req, res) => {
   }
 });
 
+// Serve frontend when running locally without Nginx
+const frontendDir = path.join(__dirname, '..', 'frontend');
+if (fs.existsSync(frontendDir)) {
+  app.use(express.static(frontendDir));
+  app.get('/', (req, res) => res.sendFile(path.join(frontendDir, 'index.html')));
+  app.get('/submissions', (req, res) => res.sendFile(path.join(frontendDir, 'submissions.html')));
+}
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`FormFlow backend listening on http://0.0.0.0:${PORT}`);
   console.log(`Database initialized at ${dbPath}`);
