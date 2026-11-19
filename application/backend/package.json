@@ -1,13 +1,14 @@
 {
-  "name": "formflow",
+  "name": "formflow-backend",
   "version": "1.0.0",
-  "description": "Lightweight FormFlow app for capturing and viewing form submissions",
+  "description": "FormFlow lightweight Node.js backend API and SQLite database",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.21.2"
   }
 }

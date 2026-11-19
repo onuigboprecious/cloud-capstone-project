@@ -25,5 +25,6 @@ variable "ssh_public_key_path" {
 
 variable "admin_source_ip" {
   type        = string
-  description = "Your IP in CIDR form, so SSH is not open to the internet"
+  description = "Source IP/CIDR allowed to SSH. Set to '*' to allow GitHub Actions runners, or your IP in CIDR form (e.g. 1.2.3.4/32)"
+  default     = "*"
 }

@@ -8,15 +8,15 @@ COPY package*.json ./
 # Install production dependencies only
 RUN npm install --omit=dev
 
-# Copy application code
+# Copy backend source
 COPY . .
 
 # Ensure persistent data directory exists
 RUN mkdir -p /app/data
 
-EXPOSE 3000
+EXPOSE 5000
 
-ENV PORT=3000
+ENV PORT=5000
 ENV NODE_ENV=production
 
 CMD ["node", "server.js"]

@@ -46,14 +46,17 @@ FormFlow/
 │   └── workflows/
 │       └── deploy.yml              # CI/CD deployment pipeline
 ├── application/
-│   ├── public/
+│   ├── backend/
+│   │   ├── server.js               # Node.js + Express API + SQLite database
+│   │   ├── package.json
+│   │   └── Dockerfile              # Backend container (node:22-alpine)
+│   ├── frontend/
 │   │   ├── index.html              # The submission form
 │   │   ├── submissions.html        # Page listing submissions
-│   │   └── styles.css              # Minimal clean styling
-│   ├── server.js                   # Lightweight Express + SQLite backend
-│   ├── package.json
-│   ├── Dockerfile                  # Container definition (node:22-alpine)
-│   └── docker-compose.yml          # Service definition mapped to port 80
+│   │   ├── styles.css              # Styling
+│   │   ├── nginx.conf              # Nginx reverse proxy configuration
+│   │   └── Dockerfile              # Frontend container (nginx:alpine)
+│   └── docker-compose.yml          # Multi-container orchestration (ports 80:80)
 ├── terraform-infrastructure/
 │   ├── provider.tf                 # AzureRM and GitHub providers
 │   ├── main.tf                     # Azure VM, Networking, NSG, and GitHub secret

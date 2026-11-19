@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -8,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 // Ensure database directory exists
 const dataDir = path.join(__dirname, 'data');
@@ -32,13 +33,17 @@ db.exec(`
 `);
 
 // Middleware
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Health check endpoint (for deployment monitoring)
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'formflow', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    service: 'formflow-backend',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Submit a new form response
@@ -85,16 +90,7 @@ app.get('/api/submissions', (req, res) => {
   }
 });
 
-// HTML page routes
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.get('/submissions', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'submissions.html'));
-});
-
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`FormFlow server is running on http://0.0.0.0:${PORT}`);
+  console.log(`FormFlow backend listening on http://0.0.0.0:${PORT}`);
   console.log(`Database initialized at ${dbPath}`);
 });
