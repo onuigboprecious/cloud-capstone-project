@@ -1,0 +1,17 @@
+services:
+  formflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: formflow-app
+    restart: unless-stopped
+    ports:
+      - "80:3000"
+    volumes:
+      - formflow_data:/app/data
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+
+volumes:
+  formflow_data:

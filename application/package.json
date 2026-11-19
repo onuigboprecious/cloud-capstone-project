@@ -1,0 +1,13 @@
+{
+  "name": "formflow",
+  "version": "1.0.0",
+  "description": "Lightweight FormFlow app for capturing and viewing form submissions",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

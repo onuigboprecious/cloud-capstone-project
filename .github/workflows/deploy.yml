@@ -1,0 +1,43 @@
+name: Deploy FormFlow Application
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'application/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Azure VM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Copy Application to Remote VM
+        run: |
+          ssh -i ~/.ssh/id_rsa azureuser@${{ secrets.DEPLOY_HOST }} "mkdir -p /home/azureuser/formflow"
+          rsync -avz -e "ssh -i ~/.ssh/id_rsa" \
+            --exclude 'node_modules' \
+            --exclude '__pycache__' \
+            --exclude '.env' \
+            ./application/ azureuser@${{ secrets.DEPLOY_HOST }}:/home/azureuser/formflow/
+
+      - name: Launch Containers with Docker Compose
+        run: |
+          ssh -i ~/.ssh/id_rsa azureuser@${{ secrets.DEPLOY_HOST }} << 'EOF'
+            set -e
+            cd /home/azureuser/formflow
+            docker compose down --remove-orphans || true
+            docker compose up -d --build
+          EOF

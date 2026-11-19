@@ -1,0 +1,17 @@
+# Azure region
+location = "eastus2"
+
+# Environment name tag
+environment = "prod"
+
+# Virtual Machine size
+vm_size = "Standard_B2s"
+
+# Admin username for the Linux VM
+admin_username = "azureuser"
+
+# Path to your SSH public key
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+
+# Your public IP address in CIDR format to allow inbound SSH (e.g., "203.0.113.50/32")
+admin_source_ip = "YOUR_PUBLIC_IP/32"
