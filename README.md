@@ -70,22 +70,34 @@ FormFlow/
 
 ## Running Locally
 
-To run the application locally without Docker:
-
-```bash
-cd application
-npm install
-npm start
-```
-Visit `http://localhost:3000` to view the form and `http://localhost:3000/submissions` to view submissions.
-
-### Running with Docker Compose locally:
+### 1. Running with Docker Compose (Recommended)
+This runs both the `frontend` (Nginx on port 80) and `backend` (Node.js API + SQLite) together:
 
 ```bash
 cd application
 docker compose up -d --build
 ```
-Visit `http://localhost:80` (or `http://localhost`).
+Once started, visit:
+- Form: `http://localhost/`
+- Submissions: `http://localhost/submissions`
+- Health check: `http://localhost/health`
+
+---
+
+### 2. Running Manually Without Docker
+
+Because the application is categorized into `backend` and `frontend`, navigate into `application/backend` for Node:
+
+**Start the Backend:**
+```bash
+cd application/backend
+npm install
+npm start
+```
+The API and database will be running on `http://localhost:5000`.
+
+**View the Frontend:**
+Open `application/frontend/index.html` directly in your web browser (or serve it with any static HTTP server).
 
 ---
 

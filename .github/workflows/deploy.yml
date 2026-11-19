@@ -22,12 +22,30 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Wait for VM & Docker Readiness
+        run: |
+          echo "Connecting to ${{ secrets.DEPLOY_HOST }} and checking Docker readiness..."
+          READY=0
+          for i in {1..30}; do
+            if ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 -i ~/.ssh/id_rsa azureuser@${{ secrets.DEPLOY_HOST }} "docker --version && docker compose version" >/dev/null 2>&1; then
+              echo "VM and Docker are fully ready!"
+              READY=1
+              break
+            fi
+            echo "Waiting for cloud-init and Docker to initialize ($i/30)..."
+            sleep 10
+          done
+          if [ $READY -ne 1 ]; then
+            echo "Timed out waiting for VM or Docker initialization."
+            exit 1
+          fi
 
       - name: Copy Application to Remote VM
         run: |
-          ssh -i ~/.ssh/id_rsa azureuser@${{ secrets.DEPLOY_HOST }} "mkdir -p /home/azureuser/formflow"
-          rsync -avz -e "ssh -i ~/.ssh/id_rsa" \
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_rsa azureuser@${{ secrets.DEPLOY_HOST }} "mkdir -p /home/azureuser/formflow"
+          rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_rsa" \
             --exclude 'node_modules' \
             --exclude '__pycache__' \
             --exclude '.env' \
@@ -35,9 +53,16 @@ jobs:
 
       - name: Launch Containers with Docker Compose
         run: |
-          ssh -i ~/.ssh/id_rsa azureuser@${{ secrets.DEPLOY_HOST }} << 'EOF'
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_rsa azureuser@${{ secrets.DEPLOY_HOST }} << 'EOF'
             set -e
             cd /home/azureuser/formflow
             docker compose down --remove-orphans || true
             docker compose up -d --build
           EOF
+
+      - name: Verify Health Check
+        run: |
+          echo "Verifying FormFlow deployment health..."
+          sleep 5
+          curl --fail --retry 6 --retry-delay 3 http://${{ secrets.DEPLOY_HOST }}/health
+          echo -e "\nFormFlow successfully deployed and healthy!"
