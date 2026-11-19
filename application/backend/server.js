@@ -98,7 +98,25 @@ if (fs.existsSync(frontendDir)) {
   app.get('/submissions', (req, res) => res.sendFile(path.join(frontendDir, 'submissions.html')));
 }
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`FormFlow backend listening on http://0.0.0.0:${PORT}`);
-  console.log(`Database initialized at ${dbPath}`);
-});
+function startServer(port) {
+  const server = app.listen(port, '0.0.0.0', () => {
+    console.log(`\n=================================================`);
+    console.log(`⚡ FormFlow is running!`);
+    console.log(`👉 Open in browser:  http://localhost:${port}`);
+    console.log(`👉 View submissions: http://localhost:${port}/submissions`);
+    console.log(`=================================================\n`);
+    console.log(`Database initialized at ${dbPath}`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE' && !process.env.PORT) {
+      console.warn(`⚠️  Port ${port} is already in use. Trying port ${port + 1}...`);
+      startServer(port + 1);
+    } else {
+      console.error('Server error:', err);
+    }
+  });
+}
+
+const initialPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
+startServer(initialPort);
