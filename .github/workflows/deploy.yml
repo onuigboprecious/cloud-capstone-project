@@ -47,8 +47,8 @@ jobs:
           ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_rsa azureuser@${{ secrets.DEPLOY_HOST }} "mkdir -p /home/azureuser/formflow"
           rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_rsa" \
             --exclude 'node_modules' \
-            --exclude '__pycache__' \
             --exclude '.env' \
+            --exclude 'data' \
             ./application/ azureuser@${{ secrets.DEPLOY_HOST }}:/home/azureuser/formflow/
 
       - name: Launch Containers with Docker Compose
