@@ -94,10 +94,7 @@ cd application/backend
 npm install
 npm start
 ```
-The API and database will be running on `http://localhost:5000`.
-
-**View the Frontend:**
-Open `application/frontend/index.html` directly in your web browser (or serve it with any static HTTP server).
+The application will start on **`http://localhost:8080`**. Open that link directly in your browser to view the form and submit messages.
 
 ---
 
