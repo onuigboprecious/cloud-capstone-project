@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FormFlow - Submissions</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <a href="/" class="logo">⚡ FormFlow</a>
+      <a href="/" class="nav-link">&larr; Back to Form</a>
+    </header>
+
+    <main class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div>
+          <h1 class="card-title">Saved Submissions</h1>
+          <p class="card-subtitle" style="margin-bottom: 0;">Stored in the database</p>
+        </div>
+        <button id="refreshBtn" class="nav-link" style="cursor: pointer; background: #fff;">↻ Refresh</button>
+      </div>
+
+      <div id="submissionsList">
+        <div class="empty-state">Loading submissions...</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const listContainer = document.getElementById('submissionsList');
+    const refreshBtn = document.getElementById('refreshBtn');
+
+    async function loadSubmissions() {
+      try {
+        const response = await fetch('/api/submissions');
+        const submissions = await response.json();
+
+        if (!submissions || submissions.length === 0) {
+          listContainer.innerHTML = `
+            <div class="empty-state">
+              <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">No submissions yet</p>
+              <p><a href="/" style="color: var(--primary);">Be the first to submit the form &rarr;</a></p>
+            </div>
+          `;
+          return;
+        }
+
+        listContainer.innerHTML = submissions.map(sub => `
+          <article class="submission-card">
+            <div class="submission-header">
+              <div>
+                <span class="submission-name">${escapeHtml(sub.name)}</span>
+                <span class="submission-email">&bull; ${escapeHtml(sub.email)}</span>
+              </div>
+              <time class="submission-date">${formatDate(sub.created_at)}</time>
+            </div>
+            <div class="submission-message">${escapeHtml(sub.message)}</div>
+          </article>
+        `).join('');
+      } catch (err) {
+        listContainer.innerHTML = `<div class="empty-state" style="color: var(--error);">Error loading submissions.</div>`;
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      return isNaN(date) ? dateStr : date.toLocaleString();
+    }
+
+    refreshBtn.addEventListener('click', loadSubmissions);
+    loadSubmissions();
+  </script>
+</body>
+</html>

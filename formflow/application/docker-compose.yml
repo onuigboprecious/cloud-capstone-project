@@ -1,0 +1,58 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        GIT_SHA: ${IMAGE_TAG}
+    image: ${DOCKERHUB_USERNAME}/formflow-backend:${IMAGE_TAG}
+    container_name: formflow-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=formflow
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=formflow
+    networks:
+      - formflow-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: formflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: formflow
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: formflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - formflow-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        GIT_SHA: ${IMAGE_TAG}
+    image: ${DOCKERHUB_USERNAME}/formflow-frontend:${IMAGE_TAG}
+    container_name: formflow-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - formflow-network
+
+volumes:
+  postgres_data:
+
+networks:
+  formflow-network:
+    driver: bridge

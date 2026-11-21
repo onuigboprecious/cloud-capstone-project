@@ -1,0 +1,114 @@
+name: Deploy FormFlow
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths:
+      - 'application/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Existing full commit SHA to redeploy (leave empty to build the current commit)'
+        required: false
+        default: ''
+
+env:
+  IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Skip on rollback so an old SHA is never rebuilt from new code
+    if: github.event.inputs.image_tag == ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./application/backend
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/formflow-backend:${{ github.sha }}
+          build-args: GIT_SHA=${{ github.sha }}
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./application/frontend
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/formflow-frontend:${{ github.sha }}
+          build-args: GIT_SHA=${{ github.sha }}
+
+      - name: Add version tag (tag pushes only)
+        if: github.ref_type == 'tag'
+        env:
+          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          for svc in backend frontend; do
+            # Retags on Docker Hub without pulling the image
+            docker buildx imagetools create \
+              -t "$DH_USER/formflow-$svc:$VERSION" \
+              "$DH_USER/formflow-$svc:$GITHUB_SHA"
+          done
+
+  deploy:
+    needs: publish
+    # Run after a successful publish, or when publish was skipped (rollback)
+    if: always() && needs.publish.result != 'failure' && needs.publish.result != 'cancelled'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      HOST: ${{ secrets.DEPLOY_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+
+      - name: Copy compose file and write env
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          ssh azureuser@"$HOST" "mkdir -p ~/formflow"
+          scp application/docker-compose.yml azureuser@"$HOST":~/formflow/
+          # Writes the complete .env, so DB_PASSWORD is never lost
+          printf 'IMAGE_TAG=%s\nDB_PASSWORD=%s\n' "$IMAGE_TAG" "$DB_PASSWORD" \
+            | ssh azureuser@"$HOST" "cat > ~/formflow/.env"
+
+      - name: Pull and start containers
+        run: |
+          ssh azureuser@"$HOST" "cd ~/formflow && docker compose pull && docker compose up -d --remove-orphans"
+
+      - name: Verify running version
+        run: |
+          for i in $(seq 1 12); do
+            actual=$(curl -fsS http://"$HOST"/version | jq -r .version 2>/dev/null || true)
+            if [ "$actual" = "$IMAGE_TAG" ]; then
+              echo "Verified running version: $actual"
+              exit 0
+            fi
+            echo "Attempt $i: found '$actual', expected '$IMAGE_TAG'. Waiting..."
+            sleep 5
+          done
+          echo "Version mismatch after retries"
+          exit 1
