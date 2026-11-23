@@ -28,3 +28,7 @@ variable "admin_source_ip" {
   description = "Source IP/CIDR allowed to SSH. Set to '*' to allow GitHub Actions runners, or your IP in CIDR form (e.g. 1.2.3.4/32)"
   default     = "*"
 }
+variable "subscription_id" {
+  type        = string
+  description = "Your Azure subscription ID"
+}
