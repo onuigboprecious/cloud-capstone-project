@@ -1,108 +1,129 @@
-resource "azurerm_resource_group" "formflow" {
-  name     = "rg-formflow-${var.environment}"
-  location = var.location
-}
-
-resource "azurerm_virtual_network" "formflow" {
-  name                = "vnet-formflow"
-  address_space       = ["10.10.0.0/16"]
-  location            = azurerm_resource_group.formflow.location
-  resource_group_name = azurerm_resource_group.formflow.name
-}
-
-resource "azurerm_subnet" "formflow" {
-  name                 = "snet-formflow"
-  resource_group_name  = azurerm_resource_group.formflow.name
-  virtual_network_name = azurerm_virtual_network.formflow.name
-  address_prefixes     = ["10.10.1.0/24"]
-}
-
-resource "azurerm_public_ip" "formflow" {
-  name                = "pip-formflow"
-  location            = azurerm_resource_group.formflow.location
-  resource_group_name = azurerm_resource_group.formflow.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
-}
-
-resource "azurerm_network_security_group" "formflow" {
-  name                = "nsg-formflow"
-  location            = azurerm_resource_group.formflow.location
-  resource_group_name = azurerm_resource_group.formflow.name
-
-  security_rule {
-    name                       = "allow-ssh"
-    priority                   = 100
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = var.admin_source_ip
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "allow-http-https"
-    priority                   = 110
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_ranges    = ["80", "443"]
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    github = {
+      source  = "integrations/github"
+      version = "~> 6.0"
+    }
   }
 }
 
-resource "azurerm_network_interface" "formflow" {
-  name                = "nic-formflow"
-  location            = azurerm_resource_group.formflow.location
-  resource_group_name = azurerm_resource_group.formflow.name
+# AWS provider is configured in provider.tf
 
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = azurerm_subnet.formflow.id
-    private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.formflow.id
+# Data source for latest Ubuntu Jammy AMI
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"] # Canonical
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
   }
 }
 
-resource "azurerm_network_interface_security_group_association" "formflow" {
-  network_interface_id      = azurerm_network_interface.formflow.id
-  network_security_group_id = azurerm_network_security_group.formflow.id
+resource "aws_vpc" "formflow" {
+  cidr_block = "10.10.0.0/16"
+  tags = {
+    Name = "vpc-formflow"
+  }
 }
 
-resource "azurerm_linux_virtual_machine" "formflow" {
-  name                = "vm-formflow-${var.environment}"
-  resource_group_name = azurerm_resource_group.formflow.name
-  location            = azurerm_resource_group.formflow.location
-  size                = var.vm_size
-  admin_username      = var.admin_username
-  network_interface_ids = [
-    azurerm_network_interface.formflow.id,
-  ]
+resource "aws_subnet" "formflow" {
+  vpc_id                  = aws_vpc.formflow.id
+  cidr_block              = "10.10.1.0/24"
+  map_public_ip_on_launch = true
+  tags = {
+    Name = "subnet-formflow"
+  }
+}
 
-  admin_ssh_key {
-    username   = var.admin_username
-    public_key = file(pathexpand(var.ssh_public_key_path))
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.formflow.id
+  tags = {
+    Name = "igw-formflow"
+  }
+}
+
+resource "aws_route_table" "rt" {
+  vpc_id = aws_vpc.formflow.id
+  tags = {
+    Name = "rt-formflow"
+  }
+}
+
+resource "aws_route" "default" {
+  route_table_id         = aws_route_table.rt.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.igw.id
+}
+
+resource "aws_route_table_association" "a" {
+  subnet_id      = aws_subnet.formflow.id
+  route_table_id = aws_route_table.rt.id
+}
+
+resource "aws_security_group" "formflow" {
+  name        = "sg-formflow"
+  description = "Allow SSH, HTTP, HTTPS"
+  vpc_id      = aws_vpc.formflow.id
+
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.admin_source_ip]
   }
 
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "StandardSSD_LRS"
+  ingress {
+    description = "HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["*"]
   }
 
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-lts-gen2"
-    version   = "latest"
+  ingress {
+    description = "HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["*"]
   }
 
-  # Installs Docker and the Compose plugin on first boot.
-  # Containers are NOT started here; the GitHub Actions pipeline deploys them.
-  custom_data = base64encode(<<-EOF
+  egress {
+    description = "All outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["*"]
+  }
+
+  tags = {
+    Name = "sg-formflow"
+  }
+}
+
+resource "aws_key_pair" "deployer" {
+  key_name   = var.ssh_key_name
+  public_key = file(var.admin_public_key_path)
+}
+
+resource "aws_instance" "formflow" {
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = var.instance_type
+  subnet_id                   = aws_subnet.formflow.id
+  vpc_security_group_ids      = [aws_security_group.formflow.id]
+  key_name                    = var.ssh_key_name
+  associate_public_ip_address = true
+  tags = {
+    Name = "formflow-${var.environment}"
+  }
+
+  # Cloud‑init to install Docker and Docker Compose
+  user_data = <<-EOF
     #cloud-config
     package_update: true
     packages:
@@ -112,11 +133,12 @@ resource "azurerm_linux_virtual_machine" "formflow" {
       - systemctl enable --now docker
       - usermod -aG docker ${var.admin_username}
   EOF
-  )
 }
 
-resource "github_actions_secret" "deploy_host" {
-  repository  = "formflow"
-  secret_name = "DEPLOY_HOST"
-  value       = azurerm_public_ip.formflow.ip_address
+# Elastic IP attached to the instance
+resource "aws_eip" "formflow" {
+  instance = aws_instance.formflow.id
+  tags = {
+    Name = "eip-formflow"
+  }
 }

@@ -1,7 +1,7 @@
 output "public_ip" {
-  value = azurerm_public_ip.formflow.ip_address
+  value = aws_eip.formflow.public_ip
 }
 
 output "ssh_command" {
-  value = "ssh ${var.admin_username}@${azurerm_public_ip.formflow.ip_address}"
+  value = "ssh ${var.admin_username}@${aws_eip.formflow.public_ip}"
 }

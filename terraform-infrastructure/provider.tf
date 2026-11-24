@@ -1,8 +1,8 @@
 terraform {
   required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 4.0"
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
     }
     github = {
       source  = "integrations/github"
@@ -11,10 +11,10 @@ terraform {
   }
 }
 
-provider "azurerm" {
-  features {}
-  # Or set the ARM_SUBSCRIPTION_ID environment variable instead
-  subscription_id = var.subscription_id
+provider "aws" {
+  region = var.aws_region
+  # Credentials can be supplied via environment variables:
+  #   AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
 }
 
 provider "github" {
@@ -25,5 +25,5 @@ provider "github" {
 resource "github_actions_secret" "deploy_host" {
   repository  = "cloud-capstone-project"
   secret_name = "DEPLOY_HOST"
-  value       = azurerm_public_ip.formflow.ip_address
+  value       = aws_eip.formflow.public_ip
 }
