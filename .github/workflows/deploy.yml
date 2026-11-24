@@ -89,15 +89,15 @@ jobs:
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          ssh azureuser@"$HOST" "mkdir -p ~/formflow"
-          scp application/docker-compose.yml azureuser@"$HOST":~/formflow/
+          ssh ubuntu@"$HOST" "mkdir -p ~/formflow"
+          scp application/docker-compose.yml ubuntu@"$HOST":~/formflow/
           # Writes the complete .env, so DB_PASSWORD is never lost
           printf 'IMAGE_TAG=%s\nDB_PASSWORD=%s\n' "$IMAGE_TAG" "$DB_PASSWORD" \
-            | ssh azureuser@"$HOST" "cat > ~/formflow/.env"
+            | ssh ubuntu@"$HOST" "cat > ~/formflow/.env"
 
       - name: Pull and start containers
         run: |
-          ssh azureuser@"$HOST" "cd ~/formflow && docker compose pull && docker compose up -d --remove-orphans"
+          ssh ubuntu@"$HOST" "cd ~/formflow && docker compose pull && docker compose up -d --remove-orphans"
 
       - name: Verify running version
         run: |

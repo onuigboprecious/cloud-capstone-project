@@ -31,12 +31,10 @@ terraform.rc
 secrets.yaml
 secrets.json
 
-# Local Databases (SQLite)
+# Local Databases 
 *.db
 *.db-journal
-*.sqlite
-*.sqlite3
-**/data/
+
 
 # Private Keys and Certificates
 *.pem
@@ -60,6 +58,7 @@ credentials
 
 # Node / JavaScript
 node_modules/
+node_modules/*
 dist/
 build/
 .npm
