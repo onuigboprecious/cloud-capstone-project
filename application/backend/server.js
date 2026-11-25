@@ -40,6 +40,13 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Version endpoint (used by CI/CD deploy verification)
+app.get('/version', (req, res) => {
+  res.json({
+    version: process.env.GIT_SHA || 'dev'
+  });
+});
+
 // Submit a new form response
 app.post('/api/submit', async (req, res) => {
   const { name, email, message } = req.body;

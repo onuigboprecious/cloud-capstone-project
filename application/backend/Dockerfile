@@ -16,6 +16,9 @@ RUN mkdir -p /app/data
 
 EXPOSE 5000
 
+ARG GIT_SHA=dev
+ENV GIT_SHA=${GIT_SHA}
+
 ENV PORT=5000
 
 ENV NODE_ENV=production
