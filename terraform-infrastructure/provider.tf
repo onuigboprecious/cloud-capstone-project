@@ -23,7 +23,7 @@ provider "github" {
 
 # Expose the public IP of the instance as a GitHub Actions secret
 resource "github_actions_secret" "deploy_host" {
-  repository   = "cloud-capstone-project"
-  secret_name  = "DEPLOY_HOST"
-  value        = aws_eip.formflow.public_ip
+  repository  = "cloud-capstone-project"
+  secret_name = "DEPLOY_HOST"
+  value       = aws_eip.formflow.public_ip
 }

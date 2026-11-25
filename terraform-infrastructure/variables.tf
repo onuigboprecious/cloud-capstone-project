@@ -20,7 +20,8 @@ variable "admin_username" {
 
 variable "ssh_key_name" {
   type        = string
-  description = "Name of the existing EC2 key pair"
+  description = "Name of the EC2 key pair to create"
+  default     = "formflow-key"
 }
 
 variable "admin_source_ip" {

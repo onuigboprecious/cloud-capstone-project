@@ -111,7 +111,7 @@ resource "aws_instance" "formflow" {
   instance_type               = var.instance_type
   subnet_id                   = aws_subnet.formflow.id
   vpc_security_group_ids      = [aws_security_group.formflow.id]
-  key_name                    = var.ssh_key_name
+  key_name                    = aws_key_pair.deployer.key_name
   associate_public_ip_address = true
   tags = {
     Name = "formflow-${var.environment}"
@@ -132,7 +132,9 @@ resource "aws_instance" "formflow" {
 
 # Elastic IP attached to the instance (used for SSH and as a GitHub Actions secret)
 resource "aws_eip" "formflow" {
-  instance = aws_instance.formflow.id
+  instance   = aws_instance.formflow.id
+  domain     = "vpc"
+  depends_on = [aws_internet_gateway.igw]
   tags = {
     Name = "eip-formflow"
   }
