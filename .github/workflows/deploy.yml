@@ -88,11 +88,12 @@ jobs:
       - name: Copy compose file and write env
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           ssh ubuntu@"$HOST" "mkdir -p ~/formflow"
           scp application/docker-compose.yml ubuntu@"$HOST":~/formflow/
-          # Writes the complete .env, so DB_PASSWORD is never lost
-          printf 'IMAGE_TAG=%s\nDB_PASSWORD=%s\n' "$IMAGE_TAG" "$DB_PASSWORD" \
+          # Writes the complete .env, so DB_PASSWORD and DOCKERHUB_USERNAME are never lost
+          printf 'IMAGE_TAG=%s\nDB_PASSWORD=%s\nDOCKERHUB_USERNAME=%s\n' "$IMAGE_TAG" "$DB_PASSWORD" "$DOCKERHUB_USERNAME" \
             | ssh ubuntu@"$HOST" "cat > ~/formflow/.env"
 
       - name: Pull and start containers
