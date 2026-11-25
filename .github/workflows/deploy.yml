@@ -4,18 +4,15 @@ on:
   push:
     branches: [main]
     tags: ['v*']
-    paths:
-      - 'application/**'
-      - '.github/workflows/deploy.yml'
   workflow_dispatch:
     inputs:
       image_tag:
-        description: 'Existing full commit SHA to redeploy (leave empty to build the current commit)'
+        description: 'Existing version tag (e.g. v1.0.0) or commit SHA to redeploy (leave empty to build current commit)'
         required: false
         default: ''
 
 env:
-  IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+  IMAGE_TAG: ${{ github.event.inputs.image_tag || (github.ref_type == 'tag' && github.ref_name) || github.sha }}
 
 concurrency:
   group: production-deploy
@@ -41,29 +38,20 @@ jobs:
         with:
           context: ./application/backend
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/formflow-backend:${{ github.sha }}
-          build-args: GIT_SHA=${{ github.sha }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/formflow-backend:${{ env.IMAGE_TAG }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/formflow-backend:${{ github.sha }}
+          build-args: GIT_SHA=${{ env.IMAGE_TAG }}
 
       - name: Build and push frontend
         uses: docker/build-push-action@v5
         with:
           context: ./application/frontend
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/formflow-frontend:${{ github.sha }}
-          build-args: GIT_SHA=${{ github.sha }}
-
-      - name: Add version tag (tag pushes only)
-        if: github.ref_type == 'tag'
-        env:
-          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
-          VERSION: ${{ github.ref_name }}
-        run: |
-          for svc in backend frontend; do
-            # Retags on Docker Hub without pulling the image
-            docker buildx imagetools create \
-              -t "$DH_USER/formflow-$svc:$VERSION" \
-              "$DH_USER/formflow-$svc:$GITHUB_SHA"
-          done
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/formflow-frontend:${{ env.IMAGE_TAG }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/formflow-frontend:${{ github.sha }}
+          build-args: GIT_SHA=${{ env.IMAGE_TAG }}
 
   deploy:
     needs: publish
